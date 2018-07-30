@@ -3,7 +3,7 @@
 ## Introduction
 With this sample script you can make a lot of things. See demos:
 
-1. [WebSocket communication](hhttps://ralac.openchain.pt/local/app/api/tinypgwebapi.cgi?wstest)
+1. [WebSocket communication](https://ralac.openchain.pt/local/app/api/tinypgwebapi.cgi?wstest)
 2. [CGI environment](https://ralac.openchain.pt/local/app/api/tinypgwebapi.cgi?print_env)
 2. [Trace file viewer](https://ralac.openchain.pt/local/app/api/tinypgwebapi.cgi?trace_viewer)
 3. [README](https://ralac.openchain.pt/local/app/api/tinypgwebapi.cgi?readme)
