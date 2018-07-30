@@ -11,13 +11,11 @@ With this sample script you can make a lot of things. See demos:
 ## Dependencies
 #### debian
 ```
-:::bash
 sudo apt-get install python-psycopg2 python-ws4py python-pygments python-markdown
 ```
 
 #### other
 ```
-:::bash
 pip install ws4py
 pip install psycopg2
 pip install pygments
