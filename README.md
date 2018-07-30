@@ -1,23 +1,20 @@
-# Tiny PostgresSQL Web API
-
-## Table of contents
-[TOC]
+# Tiny PostgresSQL Websocket API
 
 ## Introduction
-With this sample script you can make a lot of things:
+With this sample script you can make a lot of things. See demos:
 
-1. [WebSocket communication](tinypgwebapi.cgi?wstest)
-2. [CGI environment](tinypgwebapi.cgi?print_env)
-2. [Trace file viewer](tinypgwebapi.cgi?trace_viewer)
-3. [README](tinypgwebapi.cgi?readme)
+1. [WebSocket communication](hhttps://ralac.openchain.pt/local/app/api/tinypgwebapi.cgi?wstest)
+2. [CGI environment](https://ralac.openchain.pt/local/app/api/tinypgwebapi.cgi?print_env)
+2. [Trace file viewer](https://ralac.openchain.pt/local/app/api/tinypgwebapi.cgi?trace_viewer)
+3. [README](https://ralac.openchain.pt/local/app/api/tinypgwebapi.cgi?readme)
 
 ## Dependencies
-### Installation
 #### debian
 ```
 :::bash
 sudo apt-get install python-psycopg2 python-ws4py python-pygments python-markdown
 ```
+
 #### other
 ```
 :::bash
@@ -26,9 +23,9 @@ pip install psycopg2
 pip install pygments
 pip install markdown
 ```
+
 ## HTTP Server
 The script is beeing tested with **lighttpd-1.4.49** and **Tiny Tiny HTTPD** web servers. See (Wiki)[Wiki/Home]
-
 ## Configuration
 
 - **READING_BUFFER_SIZE**: Maximum number of bytes asked in each read to CGI pipe.
