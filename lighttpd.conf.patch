@@ -1,0 +1,29 @@
+*** /etc/lighttpd/lighttpd.conf	Tue Jul 31 08:29:20 2018
+--- lighttpd.conf.new	Tue Jul 31 11:20:46 2018
+***************
+*** 85,96 ****
+  ##  Basic Configuration
+  ## ---------------------
+  ##
+! server.port = 80
+  
+  ##
+  ## Use IPv6?
+  ##
+! server.use-ipv6 = "enable"
+  
+  ##
+  ## bind to a specific IP
+--- 85,96 ----
+  ##  Basic Configuration
+  ## ---------------------
+  ##
+! server.port = 8090
+  
+  ##
+  ## Use IPv6?
+  ##
+! #server.use-ipv6 = "enable"
+  
+  ##
+  ## bind to a specific IP

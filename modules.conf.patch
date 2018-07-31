@@ -1,0 +1,36 @@
+*** /etc/lighttpd/modules.conf	Tue Jul 31 08:29:20 2018
+--- modules.conf	Tue Jul 31 11:31:18 2018
+***************
+*** 47,53 ****
+  #  "mod_evasive",
+  #  "mod_redirect",
+  #  "mod_rewrite",
+! #  "mod_setenv",
+  #  "mod_usertrack",
+  )
+  
+--- 47,53 ----
+  #  "mod_evasive",
+  #  "mod_redirect",
+  #  "mod_rewrite",
+!   "mod_setenv",
+  #  "mod_usertrack",
+  )
+  
+***************
+*** 140,146 ****
+  ##
+  ## plain old CGI (mod_cgi)
+  ##
+! #include "conf.d/cgi.conf"
+  
+  ##
+  #######################################################################
+--- 140,146 ----
+  ##
+  ## plain old CGI (mod_cgi)
+  ##
+! include "conf.d/cgi.conf"
+  
+  ##
+  #######################################################################

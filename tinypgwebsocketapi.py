@@ -128,22 +128,48 @@ def session_id():
 
 
 def eventsource_trace():
+    import select
+    import fcntl
+    def nonblocking(fd):
+        fl = fcntl.fcntl(fd, fcntl.F_GETFL)
+        fcntl.fcntl(fd, fcntl.F_SETFL, fl | os.O_NONBLOCK)    
+
     print 'Content-type: text/event-stream'
     print
-    proc = subprocess.Popen(['tail', '-f', '-n', '128', TRACE_FILE], stdout=subprocess.PIPE)
+    (tail_input, tail_output) = os.pipe()
+    proc = subprocess.Popen(['tail', '-f', '-n', '128', TRACE_FILE], bufsize=1024, shell = False, stdout = tail_output, stderr = tail_output)
+    
     id = 0
+    # nonblocking(sys.stdout)
+    # nonblocking(tail_input)
+    buf = ""
     while True:
-        try:
-            line = proc.stdout.readline()
-            id += 1
-            print 'data: ' + line.rstrip()
-            print 'id: ' + str(id)
-            print 'retry: %d' % (10 * 60 * 60 * 100)  # 10 hours
-            print
+        fds_read = [ tail_input, ]
+        fds_write = [ sys.stdout, ]
+        fds_exception = [ tail_input, sys.stdout, ]
+        inputready, outputready, exceptready = select.select(fds_read, fds_write, fds_exception, 0.5)
+        if inputready:
+            for fd in inputready:
+                if fd == tail_input:
+                    data = os.read(tail_input, 65536)
+                    if data:
+                        last_nl = data.rfind('\n')
+                        buf = data[last_nl+1:]
+                        lines = data[:last_nl].split('\n')
+                        for line in lines:
+                            id += 1
+                            sys.stdout.write('data: ' + line.rstrip() + '\n')
+                            sys.stdout.write('id: ' + str(id) + '\n')
+                            sys.stdout.write('retry: %d' % (10 * 60 * 60 * 100) + '\n')  # 10 hours
+                            sys.stdout.write('\n')
+                            sys.stdout.flush()
+        else:
+            sys.stdout.write('\n')
+            sys.stdout.write('\n')
             sys.stdout.flush()
-        except:
-            break
-
+        if exceptready and sys.stdout in exceptready:
+            break;
+    subprocess.Popen.kill(proc)
 
 def trace_viewer():
     import cgi
