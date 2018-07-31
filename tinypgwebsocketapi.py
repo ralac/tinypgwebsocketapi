@@ -128,48 +128,36 @@ def session_id():
 
 
 def eventsource_trace():
-    import select
-    import fcntl
-    def nonblocking(fd):
-        fl = fcntl.fcntl(fd, fcntl.F_GETFL)
-        fcntl.fcntl(fd, fcntl.F_SETFL, fl | os.O_NONBLOCK)    
+    import time
 
     print 'Content-type: text/event-stream'
     print
-    (tail_input, tail_output) = os.pipe()
-    proc = subprocess.Popen(['tail', '-f', '-n', '128', TRACE_FILE], bufsize=1024, shell = False, stdout = tail_output, stderr = tail_output)
+    sys.stdout.flush()
     
     id = 0
-    # nonblocking(sys.stdout)
-    # nonblocking(tail_input)
-    buf = ""
+
+    t_file = open(TRACE_FILE)
+    t_file.seek(0,2)
+    init_position = t_file.tell() - 65536
+    if init_position < 1:
+        init_position = 1
+    t_file.seek(init_position,0)
     while True:
-        fds_read = [ tail_input, ]
-        fds_write = [ sys.stdout, ]
-        fds_exception = [ tail_input, sys.stdout, ]
-        inputready, outputready, exceptready = select.select(fds_read, fds_write, fds_exception, 0.5)
-        if inputready:
-            for fd in inputready:
-                if fd == tail_input:
-                    data = os.read(tail_input, 65536)
-                    if data:
-                        last_nl = data.rfind('\n')
-                        buf = data[last_nl+1:]
-                        lines = data[:last_nl].split('\n')
-                        for line in lines:
-                            id += 1
-                            sys.stdout.write('data: ' + line.rstrip() + '\n')
-                            sys.stdout.write('id: ' + str(id) + '\n')
-                            sys.stdout.write('retry: %d' % (10 * 60 * 60 * 100) + '\n')  # 10 hours
-                            sys.stdout.write('\n')
-                            sys.stdout.flush()
-        else:
-            sys.stdout.write('\n')
-            sys.stdout.write('\n')
-            sys.stdout.flush()
-        if exceptready and sys.stdout in exceptready:
-            break;
-    subprocess.Popen.kill(proc)
+        while True:
+            curr_position = t_file.tell()
+            line = t_file.readline()
+            if line:
+                id += 1
+                sys.stdout.write('data: ' + line.rstrip() + '\n')
+                sys.stdout.write('id: ' + str(id) + '\n')
+                sys.stdout.write('retry: %d' % (10 * 60 * 60 * 100) + '\n')  # 10 hours
+                sys.stdout.write('\n')
+                sys.stdout.flush()
+            else:
+                t_file.seek(curr_position)
+                break;
+        time.sleep(0.5)
+
 
 def trace_viewer():
     import cgi
@@ -415,14 +403,13 @@ def print_page():
     print
 
 
-conn = None
 def pg_datetime():
     try:
-        global conn
-        if conn is None:
-            conn = psycopg2.connect(dbname='postgres', user='ralac')
-            conn.autocommit = True
-        cur = conn.cursor()
+        global pg_conn
+        if pg_conn is None:
+            pg_conn = psycopg2.connect(dbname='postgres', user='ralac')
+            pg_conn.autocommit = True
+        cur = pg_conn.cursor()
         cur.execute(
         """
 SELECT to_char(current_timestamp, 'YYYY-MM-DD HH24:MI:SS');
@@ -430,7 +417,7 @@ SELECT to_char(current_timestamp, 'YYYY-MM-DD HH24:MI:SS');
         )
         rows = cur.fetchall()
         cur.close()
-        # conn.rollback()
+        # pg_conn.rollback()
         for row in rows:
             result = row[0]
         return result
@@ -440,6 +427,7 @@ SELECT to_char(current_timestamp, 'YYYY-MM-DD HH24:MI:SS');
         return str(e)
 
 
+pg_conn = None
 cgi_qs = []
 try:
     session_id()
