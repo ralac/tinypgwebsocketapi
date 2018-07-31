@@ -3,9 +3,9 @@
 ## Introduction
 With this sample script you can make a lot of things. See demos:
 
-1. [WebSocket communication](https://ralac.openchain.pt/local/app/api/tinypgwebapi.cgi?wstest)
-2. [CGI environment](https://ralac.openchain.pt/local/app/api/tinypgwebapi.cgi?print_env)
-2. [Trace file viewer](https://ralac.openchain.pt/local/app/api/tinypgwebapi.cgi?trace_viewer)
+1. [WebSocket communication](https://ralac.openchain.pt/local/app/api/tinypgwebsocketapi.py?wstest)
+2. [CGI environment](https://ralac.openchain.pt/local/app/api/tinypgwebsocketapi.py?print_env)
+2. [Trace file viewer](https://ralac.openchain.pt/local/app/api/tinypgwebsocketapi.py?trace_viewer)
 
 ## Dependencies
 #### debian

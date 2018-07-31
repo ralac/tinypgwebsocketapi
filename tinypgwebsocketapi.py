@@ -1,14 +1,10 @@
 #!/usr/bin/python -u
 
-README_MARKDOWN="""
-See new repe (here)[https://github.com/ralac/tinypgwebsocketapi]
-"""
-
 # Configuration
 READING_BUFFER_SIZE = 16384
 FD_POLLING_TIMEOUT=5
 TRACE=True
-TRACE_FILE='tinypgwebapi.log'
+TRACE_FILE='tinypgwebsocketapi.log'
 
 import os
 import sys
@@ -157,7 +153,7 @@ def trace_viewer():
 <!DOCTYPE html>
 <html>
     <head>
-        <title>Tiny PostgresSQL Web API</title>
+        <title>Tiny PostgresSQL Websocket API</title>
         <style>
             h1 {
                 margin-left: 20px;
@@ -267,7 +263,7 @@ def print_env():
 <!DOCTYPE html>
 <html>
     <head>
-        <title>Tiny PostgresSQL Web API</title>
+        <title>Tiny PostgresSQL Websocket API</title>
         <style>
             h3 {
                 margin-left: 20px;
@@ -321,7 +317,7 @@ def print_wstest():
 <!DOCTYPE html>
 <html>
     <head>
-        <title>Tiny PostgresSQL Web API</title>
+        <title>Tiny PostgresSQL Websocket API</title>
         <style>
             h1 {
                 margin-left: 20px;
@@ -370,69 +366,24 @@ def print_wstest():
     print
 
 
-def print_readme():
-    import markdown
-    readme_extensions = [
-        'markdown.extensions.extra',
-        'markdown.extensions.nl2br',
-        'markdown.extensions.codehilite',
-        'markdown.extensions.toc',
-    ]
-    readme_extensions_configs = {
-        'markdown.extensions.extra': {},
-        'markdown.extensions.nl2br': {},
-        'markdown.extensions.codehilite': {
-            'pygments_style': 'autumn'
-        },
-        'markdown.extensions.toc': {
-            'baselevel': 2
-        },
-    }
-    source_str=''
-    source_str+='```\n'
-    source_str+=':::python\n'
-    skip=False
-    with open(__file__, 'r') as f:
-        for line in f:
-            if skip:
-                if line.rstrip() == '"""':
-                    skip = False
-            else:
-                source_str += line.rstrip()+'\n'
-                if line.rstrip() == 'README_MARKDOWN="""':
-                    source_str += '... README_MARKDOWN variable source bellow\n"""\n'
-                    skip = True
-        f.close()
-    source_str+='```\n'
-    outstr=markdown.markdown(README_MARKDOWN+source_str, extensions=readme_extensions, extension_configs=readme_extensions_configs)
+def print_page():
     print 'Content-Type: text/html'
     print
     print """
 <!DOCTYPE html>
 <html>
     <head>
-        <title>Tiny PostgresSQL Web API</title>
+        <title>Tiny PostgresSQL Websocket API</title>
         <link rel="stylesheet" href="%s">
-        <style>
-    """ % 'https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/2.10.0/github-markdown.min.css'
-    print subprocess.check_output(['pygmentize', '-S', 'autumn', '-f', 'html'])
-    print """
-        </style>
     </head>
-    <body style="margin: 0 auto; max-width: 800px;"><article class="markdown-body">
-    <h2><br/>Tiny PostgresSQL Web API</h2>
-    """
-    print
-    print outstr
-    source_str='\n###README_MARKDOWN variable source\n'
-    source_str+='```\n'
-    source_str+=':::md\n'
-    source_str+=README_MARKDOWN.replace('```','\\`\\`\\`')+'\n'
-    source_str+='```\n'
-    outstr=markdown.markdown(source_str, extensions=readme_extensions, extension_configs=readme_extensions_configs).replace('\\`\\`\\`','```')
-    # print outstr
-    print """
-    </article></body>
+    <body style="margin: 0 auto; max-width: 800px;">
+        <h2><br/>Tiny PostgresSQL Websocket API</h2>
+        <a href="tinypgwebsocketapi.py?wstest">WebSocket communication</a>
+        <br/>
+        <a href="tinypgwebsocketapi.py?print_env">CGI environment</a>
+        <br/>
+        <a href="tinypgwebsocketapi.py?trace_viewer">Trace file viewer</a>
+    </body>
 </html>
     """
     print
@@ -479,10 +430,8 @@ try:
             print_env()
         elif cgi_qs.__contains__('wstest'):
             print_wstest()
-        elif cgi_qs.__contains__('readme'):
-            print_readme()
         else:
-            print_readme()
+            print_page()
 except:
     exc_type, exc_value, exc_traceback = sys.exc_info()
     import traceback

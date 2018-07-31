@@ -1,0 +1,19 @@
+*** lighttpd-1.4.49/src/mod_cgi.c	Mon Mar 12 00:52:20 2018
+--- mod_cgi.c	Tue Jul 31 00:23:09 2018
+***************
+*** 797,803 ****
+  
+  		cgi_pid_add(p, hctx->pid, hctx);
+  
+! 		if (0 == con->request.content_length) {
+  			close(to_cgi_fds[1]);
+  		} else {
+  			/* there is content to send */
+--- 797,803 ----
+  
+  		cgi_pid_add(p, hctx->pid, hctx);
+  
+! 		if (0 == con->request.content_length && !hctx->conf.upgrade) {
+  			close(to_cgi_fds[1]);
+  		} else {
+  			/* there is content to send */
