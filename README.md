@@ -20,7 +20,7 @@ pip install psycopg2
 ```
 
 ## HTTP Server
-The script is beeing tested with **lighttpd-1.4.49** and **Tiny Tiny HTTPD** web servers. See (Wiki)[Wiki/Home]
+This project uses patched **Lighttpd** web server and can run under Linux or Cygwin. See [Wiki](Wiki/Home)
 
 ## Configuration
 
