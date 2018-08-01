@@ -20,7 +20,7 @@ pip install psycopg2
 ```
 
 ## HTTP Server
-This project uses patched **Lighttpd** web server and can run under Linux or Cygwin. See [Wiki](Wiki/Home)
+This project uses patched **Lighttpd** web server and can run under Linux or Cygwin. See [Wiki](https://github.com/ralac/tinypgwebsocketapi/wiki)
 
 ## Configuration
 
