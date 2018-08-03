@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Tiny PostgresSQL Websocket API</title>
+        <style>
+            h1 {
+                margin-left: 20px;
+            }
+            html, body {
+                height: 100%;
+                margin: 0px;
+                padding: 0px;
+            }
+            .container {
+                height: 100%;
+                width: 100%;
+                margin: 0px;
+                padding: 0px;
+                table-layout:fixed;
+            }
+            .container tr, .container td {
+                margin: 0px;
+                padding: 0px;
+                border-width: 0px;
+            }
+            .row1px {
+                height: 1px;
+            }
+            .rowauto {
+                height: auto;
+            }
+            textarea {
+                display: block;
+                margin: 0px auto;
+                padding: 0px;
+                height: 95%;
+                width: 100%;
+            }
+        </style>
+        <script>
+            var eventSource = null;
+            function addToLog(data) {
+                var currentdate = new Date();
+                var str_datetime =
+                    currentdate.getFullYear() +
+                    '-' +
+                    String(currentdate.getMonth()+1+100).substr(-2) +
+                    '-' +
+                    String(currentdate.getDate()+100).substr(-2) +
+                    ' ' +
+                    String(currentdate.getHours()+100).substr(-2) +
+                    ':' +
+                    String(currentdate.getMinutes()+100).substr(-2) +
+                    ':' +
+                    String(currentdate.getSeconds()+100).substr(-2);
+                logBox.value = '*[' + str_datetime + '] ' + data + '\n' + logBox.value.substr(0, 65535);
+                logBox.scrollTop = 0;
+            }
+            document.addEventListener('DOMContentLoaded', function(){
+                logBox = document.getElementById('log');
+                eventSource  = new EventSource(location.href.replace('traceviewer.html', 'tail.sh'));
+                eventSource.onopen = function() {
+                    logBox.value = "";
+                    addToLog('onopen (readyState = ' + eventSource.readyState + ')');
+                }
+                eventSource.onmessage = function(event) {
+                    addToLog(event.data);
+                }
+                eventSource.onerror = function(event) {
+                    addToLog('onerror (readyState = ' + eventSource.readyState + ')');
+                }
+            });
+        </script>
+    </head>
+    <body style="margin: 0px auto; max-width: 800px;">
+        <table class="container">
+            <tr class="row1px">
+                <td>
+                    <h1>Trave Viewer</h1>
+                </td>
+            </tr>
+            <tr class="rowauto">
+                <td>
+                    <textarea id="log" readonly>
+                    </textarea>
+                </td>
+            </tr>
+            <tr class="row1px">
+                <td style="font-size=xx-small; padding-bottom: 15px;">
+                    *Browser receiving time.
+                </td>
+            </tr>
+        </table>
+    </body>
+</html>

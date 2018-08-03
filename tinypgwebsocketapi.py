@@ -4,7 +4,7 @@
 READING_BUFFER_SIZE = 16384
 FD_POLLING_TIMEOUT=5
 TRACE=True
-TRACE_FILE='/var/log/lighttpd/tinypgwebsocketapi.log'
+TRACE_FILE='tinypgwebsocketapi.log'
 
 import os
 import sys
@@ -132,7 +132,7 @@ def eventsource_trace():
     print 'Content-type: text/event-stream'
     print
     sys.stdout.flush()
-    
+
     id = 0
 
     t_file = open(TRACE_FILE)
@@ -227,9 +227,9 @@ def print_page():
         <h2><br/>Tiny PostgresSQL Websocket API</h2>
         <a href="tinypgwebsocketapi.py?wstest">WebSocket communication</a>
         <br/>
-        <a href="../../cgi-bin/printenv.pl">CGI environment</a>
+        <a href="printenv">CGI environment</a>
         <br/>
-        <a href="../../cgi-bin/tail.php">Trace file viewer</a>
+        <a href="traceviewer.html">Trace file viewer</a>
         <br/>
         <br/>
         <div style="background-color: #f2f2f2; padding: 15px;">

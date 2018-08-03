@@ -1,5 +1,7 @@
 lighttpd1.4/
 **/*.log
+**/*.o
+**/*.exe
 
 .deps/
 Makefile
@@ -12,6 +14,5 @@ configure
 depcomp
 install-sh
 missing
-*.o
-*.exe
-printenv
+
+tinypgwebsocketapi.cbp
