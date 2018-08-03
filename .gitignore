@@ -1,2 +1,17 @@
 lighttpd1.4/
 **/*.log
+
+.deps/
+Makefile
+Makefile.in
+aclocal.m4
+autom4te.cache/
+compile
+config.status
+configure
+depcomp
+install-sh
+missing
+*.o
+*.exe
+printenv

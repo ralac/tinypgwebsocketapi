@@ -4,17 +4,18 @@
 READING_BUFFER_SIZE = 16384
 FD_POLLING_TIMEOUT=5
 TRACE=True
-TRACE_FILE='tinypgwebsocketapi.log'
+TRACE_FILE='/var/log/lighttpd/tinypgwebsocketapi.log'
 
 import os
 import sys
 import json
 import psycopg2
-import subprocess
+
 self_pid=os.getpid()
 
 SYS_PAGE_SIZE=-1
 def memory_usage_ps():
+    import subprocess
     global SYS_PAGE_SIZE
     if SYS_PAGE_SIZE == -1:
         SYS_PAGE_SIZE = int(subprocess.check_output(["getconf", "PAGE_SIZE"]).strip())
@@ -33,9 +34,7 @@ def log_message(msg):
         trace_file.close()
 
 
-# log_message('memory (common):'+memory_usage_ps())
-
-def websocket():
+def websocket_test():
     import time
     import hashlib
     import base64
@@ -122,7 +121,7 @@ def session_id():
         import uuid
         cookie = Cookie.SimpleCookie(os.environ["HTTP_COOKIE"])
         session_id = cookie["session_id"].value
-    except (Cookie.CookieError, KeyError):
+    except:
         session_id = str(uuid.uuid1()).replace('-', '')
         print 'Set-Cookie: session_id=%s' % session_id
 
@@ -157,171 +156,6 @@ def eventsource_trace():
                 t_file.seek(curr_position)
                 break;
         time.sleep(0.5)
-
-
-def trace_viewer():
-    import cgi
-    print 'Content-Type: text/html'
-    print
-    print """
-<!DOCTYPE html>
-<html>
-    <head>
-        <title>Tiny PostgresSQL Websocket API</title>
-        <style>
-            h1 {
-                margin-left: 20px;
-            }
-            html, body {
-                height: 100%;
-                margin: 0px;
-                padding: 0px;
-            }
-            .container {
-                height: 100%;
-                width: 100%;
-                margin: 0px;
-                padding: 0px;
-                table-layout:fixed;
-            }
-            .container tr, .container td {
-                margin: 0px;
-                padding: 0px;
-                border-width: 0px;
-            }
-            .row1px {
-                height: 1px;
-            }
-            .rowauto {
-                height: auto;
-            }
-            textarea {
-                display: block;
-                margin: 0px auto;
-                padding: 0px;
-                height: 95%;
-                width: 100%;
-            }
-        </style>
-        <script>
-            var eventSource = null;
-
-            function addToLog(data) {
-                var currentdate = new Date();
-
-                var str_datetime =
-                    currentdate.getFullYear() +
-                    '-' +
-                    String(currentdate.getMonth()+1+100).substr(-2) +
-                    '-' +
-                    String(currentdate.getDate()+100).substr(-2) +
-                    ' ' +
-                    String(currentdate.getHours()+100).substr(-2) +
-                    ':' +
-                    String(currentdate.getMinutes()+100).substr(-2) +
-                    ':' +
-                    String(currentdate.getSeconds()+100).substr(-2);
-
-                logBox.value = '*[' + str_datetime + '] ' + data + '\\n' + logBox.value.substr(0, 65535);
-                logBox.scrollTop = 0;
-            }
-
-            document.addEventListener('DOMContentLoaded', function(){
-                logBox = document.getElementById('log');
-
-                eventSource  = new EventSource(location.href.replace('?trace_viewer', '?trace'));
-                eventSource.onopen = function() {
-                    logBox.value = "";
-                    addToLog('onopen (readyState = ' + eventSource.readyState + ')');
-                }
-                eventSource.onmessage = function(event) {
-                    addToLog(event.data);
-                }
-                eventSource.onerror = function(event) {
-                    addToLog('onerror (readyState = ' + eventSource.readyState + ')');
-                }
-            });
-
-        </script>
-    </head>
-    <body style="margin: 0px auto; max-width: 800px;">
-        <table class="container">
-            <tr class="row1px">
-                <td>
-                    <h1>Trave Viewer</h1>
-                </td>
-            </tr>
-            <tr class="rowauto">
-                <td>
-                    <textarea id="log" readonly>
-                    </textarea>
-                </td>
-            </tr>
-            <tr class="row1px">
-                <td style="font-size=xx-small; padding-bottom: 15px;">
-                    *Browser receiving time.
-                </td>
-            </tr>
-        </table>
-    </body>
-</html>
-    """
-    print
-
-
-def print_env():
-    import cgi
-    print 'Content-Type: text/html'
-    print
-    print """
-<!DOCTYPE html>
-<html>
-    <head>
-        <title>Tiny PostgresSQL Websocket API</title>
-        <style>
-            h3 {
-                margin-left: 20px;
-            }
-            dl {
-                margin: 0.5em;
-                font-size: small;
-            }
-            dt {
-                float: left;
-                clear: left;
-                width: 300px;
-                text-align: right;
-                font-weight: bold;
-                word-wrap: break-word;
-                font-size: small;
-                min-height: 18px;
-            }
-            dd {
-                margin: 0 0 0 300px;
-                padding: 0 0 0 0.5em;
-                word-wrap: break-word;
-                font-size: small;
-                min-height: 18px;
-                &:empty {
-                    content: 'Empty';
-                }
-            }
-            dt:nth-child(4n+1), dt:nth-child(4n+1) + dd {
-                background-color: #f2f2f2;
-            }
-            dt::empty {
-                content: "&lt;empty&ngt;";
-            }
-        </style>
-    </head>
-    <body style="margin: 0 auto; max-width: 800px;">
-    """
-    cgi.print_environ()
-    print """
-    </body>
-</html>
-    """
-    print
 
 
 def print_wstest():
@@ -388,18 +222,26 @@ def print_page():
 <html>
     <head>
         <title>Tiny PostgresSQL Websocket API</title>
-        <link rel="stylesheet" href="%s">
     </head>
     <body style="margin: 0 auto; max-width: 800px;">
         <h2><br/>Tiny PostgresSQL Websocket API</h2>
         <a href="tinypgwebsocketapi.py?wstest">WebSocket communication</a>
         <br/>
-        <a href="tinypgwebsocketapi.py?print_env">CGI environment</a>
+        <a href="../../cgi-bin/printenv.pl">CGI environment</a>
         <br/>
-        <a href="tinypgwebsocketapi.py?trace_viewer">Trace file viewer</a>
+        <a href="../../cgi-bin/tail.php">Trace file viewer</a>
+        <br/>
+        <br/>
+        <div style="background-color: #f2f2f2; padding: 15px;">
+        <code>
+        %s
+        </code>
+        </div>
+        <br/>
+        <br/>
     </body>
 </html>
-    """
+    """ % unicode(sorted(os.environ.items())).decode('utf8').replace('(','<br/>(')[6:-1]
     print
 
 
@@ -435,11 +277,9 @@ try:
         cgi_qs = os.environ['QUERY_STRING'].split('&')
     if os.environ['REQUEST_METHOD'] == "GET":
         if cgi_qs.__contains__('ws'):
-            websocket()
+            websocket_test()
         elif cgi_qs.__contains__('trace'):
             eventsource_trace()
-        elif cgi_qs.__contains__('trace_viewer'):
-            trace_viewer()
         elif cgi_qs.__contains__('print_env'):
             print_env()
         elif cgi_qs.__contains__('wstest'):
