@@ -7,7 +7,7 @@ echo "Content-Type: text/event-stream"
 # echo "Transfer-Encoding: chunked"
 #
 echo ""
-stdbuf -o 0 /usr/bin/tail -f -n 512 "$TRACE_FILE" | stdbuf -i 0 -o 0 /usr/bin/awk '{
+stdbuf -o 0 /usr/bin/tail -f -n 512 "$FILE_TO_TAIL" | stdbuf -i 0 -o 0 /usr/bin/awk '{
     system("");
     print "data: " $0;
     print "id: " NR;

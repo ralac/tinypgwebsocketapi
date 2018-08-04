@@ -1,15 +1,14 @@
-#!/usr/bin/python -u
-
-# Configuration
-READING_BUFFER_SIZE = 16384
-FD_POLLING_TIMEOUT=5
-TRACE=True
-TRACE_FILE='tinypgwebsocketapi.log'
+#!/usr/bin/python
 
 import os
 import sys
 import json
 import psycopg2
+
+# Configuration
+READING_BUFFER_SIZE = os.environ['READING_BUFFER_SIZE']
+FD_POLLING_TIMEOUT  = float(os.environ['FD_POLLING_TIMEOUT'])
+TRACE               = bool(os.environ['TRACE']=='enabled')
 
 self_pid=os.getpid()
 
@@ -28,10 +27,8 @@ def memory_usage_ps():
 
 def log_message(msg):
     if TRACE:
-        trace_file = open(TRACE_FILE, 'a')
-        trace_file.write(msg+'\n')
-        trace_file.flush()
-        trace_file.close()
+        sys.stderr.write(msg+'\n')
+        sys.stderr.flush()
 
 
 def websocket_test():
@@ -124,38 +121,6 @@ def session_id():
     except:
         session_id = str(uuid.uuid1()).replace('-', '')
         print 'Set-Cookie: session_id=%s' % session_id
-
-
-def eventsource_trace():
-    import time
-
-    print 'Content-type: text/event-stream'
-    print
-    sys.stdout.flush()
-
-    id = 0
-
-    t_file = open(TRACE_FILE)
-    t_file.seek(0,2)
-    init_position = t_file.tell() - 65536
-    if init_position < 1:
-        init_position = 1
-    t_file.seek(init_position,0)
-    while True:
-        while True:
-            curr_position = t_file.tell()
-            line = t_file.readline()
-            if line:
-                id += 1
-                sys.stdout.write('data: ' + line.rstrip() + '\n')
-                sys.stdout.write('id: ' + str(id) + '\n')
-                sys.stdout.write('retry: %d' % (10 * 60 * 60 * 100) + '\n')  # 10 hours
-                sys.stdout.write('\n')
-                sys.stdout.flush()
-            else:
-                t_file.seek(curr_position)
-                break;
-        time.sleep(0.5)
 
 
 def print_wstest():
