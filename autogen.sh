@@ -1,5 +1,8 @@
-#!/usr/bin/bash
-aclocal
-autoconf
-automake -a
-#autoreconf-2.69 -vi
+#! /bin/sh
+
+#autoheader && \
+#aclocal && \
+#automake  --add-missing --copy --no-force && \
+#autoconf
+
+autoreconf -vi
