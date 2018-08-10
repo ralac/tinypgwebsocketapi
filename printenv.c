@@ -2,7 +2,7 @@
 
 // Most of the C compilers support a third parameter to main which
 // store all environment variables
-int main(int argc, char *argv[], char * envp[])
+int main(int argc, char *argv[], char *envp[])
 {
     printf("Content-type: text/plain; charset=iso-8859-1\n\n");
     int i;
