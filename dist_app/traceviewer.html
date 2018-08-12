@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Tiny PostgresSQL Websocket API</title>
+        <style>
+            h1 {
+                margin-left: 20px;
+            }
+            html, body {
+                height: 100%;
+                margin: 0px;
+                padding: 0px;
+            }
+            .container {
+                height: 100%;
+                width: 100%;
+                margin: 0px;
+                padding: 0px;
+                table-layout:fixed;
+            }
+            .container tr, .container td {
+                margin: 0px;
+                padding: 0px;
+                border-width: 0px;
+            }
+            .row1px {
+                height: 1px;
+            }
+            .rowauto {
+                height: auto;
+            }
+            textarea {
+                display: none;
+                margin: 0px auto;
+                padding: 0px;
+                height: 95%;
+                width: 100%;
+                background-color: black;
+                color: white;
+            }
+            #rbaccess:not(:checked) ~ #access{
+                display: none;
+            }
+            #rbaccess:checked ~ #access{
+                display: block;
+            }
+            #rberror:not(:checked) ~ #error{
+                display: none;
+            }
+            #rberror:checked ~ #error{
+                display: block;
+            }
+            #rbbreakage:not(:checked) ~ #breakage{
+                display: none;
+            }
+            #rbbreakage:checked ~ #breakage{
+                display: block;
+            }
+        </style>
+        <script>
+            function addToLog(elem, data) {
+                if (elem.id == "breakage") {
+                    var currentdate = new Date();
+                    var str_datetime =
+                        currentdate.getFullYear() +
+                        '-' +
+                        String(currentdate.getMonth()+1+100).substr(-2) +
+                        '-' +
+                        String(currentdate.getDate()+100).substr(-2) +
+                        ' ' +
+                        String(currentdate.getHours()+100).substr(-2) +
+                        ':' +
+                        String(currentdate.getMinutes()+100).substr(-2) +
+                        ':' +
+                        String(currentdate.getSeconds()+100).substr(-2);
+                    elem.value = elem.value + '\n' + '*[' + str_datetime + '] ' + data;
+                } else
+                    elem.value = elem.value + '\n' + data;
+                if (elem.value.length > 65535) {
+                    elem.value = elem.value.substr(0, 65535);
+                }
+                elem.scrollTop = elem.scrollHeight;
+            }
+            document.addEventListener('DOMContentLoaded', function(){
+                start_tail("access");
+                start_tail("error");
+                start_tail("breakage");
+            });
+
+            function start_tail(log_type) {
+                var eventSource = null;
+                eventSource  = new EventSource(location.href.replace('traceviewer.html', 'api/tail.sh?' + log_type));
+                eventSource.logBox = document.getElementById(log_type);
+                eventSource.onopen = function() {
+                    eventSource.logBox.value = "";
+                    addToLog(this.logBox, 'onopen (readyState = ' + eventSource.readyState + ')');
+                }
+                eventSource.onmessage = function(event) {
+                    addToLog(this.logBox, event.data);
+                }
+                eventSource.onerror = function(event) {
+                    addToLog(this.logBox, 'onerror (readyState = ' + eventSource.readyState + ')');
+                }
+            }
+
+            function boxBottom(elem_id) {
+                elem = document.getElementById(elem_id);
+                elem.scrollTop = elem.scrollHeight;
+            }
+         </script>
+     </head>
+     <body style="margin: 0px auto; max-width: 1024px;">
+         <table class="container">
+             <tr class="row1px">
+                 <td>
+                     <h1>Trave Viewer</h1>
+                 </td>
+             </tr>
+             <tr class="rowauto">
+                 <td>
+                     <input type="radio" name="log" id="rbaccess" checked onclick="boxBottom('access');"></input>
+                     <label for="rbaccess" onclick=="boxBottom('access');">access.log</label>
+                     <input type="radio" name="log" id="rberror" onclick="boxBottom('error');"></input>
+                     <label for="rberror" onclick="boxBottom('error');">error.log</label>
+                     <input type="radio" name="log" id="rbbreakage" onclick="boxBottom('breakage');"></input>
+                     <label for="rbbreakage" onclick="boxBottom('breakage');">breakage.log</label>
+                     <textarea id="access"   name="access" readonly>
+                     </textarea>
+                     <textarea id="error"    name="error" readonly>
+                     </textarea>
+                     <textarea id="breakage" name="breakage" readonly>
+                     </textarea>
+                 </td>
+             </tr>
+             <tr class="row1px">
+                 <td style="font-size=xx-small; padding-bottom: 15px;">
+                     *Browser receiving time for breakage.log.
+                 </td>
+             </tr>
+         </table>
+     </body>
+ </html>

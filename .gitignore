@@ -1,4 +1,4 @@
-dist_api/
+dist_app/api/
 lighttpd1.4/
 **/*.log
 tinypgwebsocketapi.cbp

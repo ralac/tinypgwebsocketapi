@@ -1,26 +1,27 @@
-CFLAGS=
+#
+# kill $(ps -ef | grep tpgwsapi | awk '{print $2}') && make install
+#
+
+CFLAGS=-D_GNU_SOURCE
 CC=gcc
-LIBS=-L./ -lpg
+LIBS=-L./ -lpq -lfcgi
+DEST_DIR=dist_app/api
 
 all: printenv tpgwsapi
 
-install: printenv tpgwsapi tinypgwebsocketapi.py test.py tail.sh loginform.html traviewer.html
-    mkdir -p dist_api
-	cp $@ dist_api/
-	@echo ""----------------> " $@ is in dist_api.
+install: src/tpgwsapi src/printenv src/tail.sh src/tinypgwebsocketapi.py
+	mkdir -p $(DEST_DIR)
+	cp src/tpgwsapi src/tpgwsapi-fcgi src/printenv src/tail.sh src/tinypgwebsocketapi.py $(DEST_DIR)/
 
-printenv: printenv.c
-	$(CC) $(CFLAGS) -o $@ printenv.c
+uninstall:
+	rm -rf $(DEST_DIR)
 
-printenv: printenv.c
-	$(CC) $(CFLAGS) -o $@ printenv.c
+printenv: src/printenv.c
+	cd src && $(CC) $(CFLAGS) -o $@ printenv.c
 
-printenv: printenv.c
-	$(CC) $(CFLAGS) -o $@ printenv.c
+tpgwsapi: src/tpgwsapi.c src/tpgwsapi.h
+	cd src && $(CC) $(CFLAGS) -o $@ tpgwsapi.c $(LIBS)
+	cd src && $(CC) $(CFLAGS) -o $@-fcgi tpgwsapi.c $(LIBS) -DTPGWSAPI_FCGI
 
 clean:
-	rm -f *.o *.a printenv tpgwsapi tpgwsapi_test
-
-tpgwsapi_test: tpgwsapi_test.c
-	$(CC) $(CFLAGS) -o $@ printenv.c
-	./tpgwsapi_test
+	rm -f src/printenv src/tpgwsapi src/tpgwsapi-fcgi

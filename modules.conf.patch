@@ -8,7 +8,7 @@
 ! #  "mod_setenv",
   #  "mod_usertrack",
   )
-  
+
 --- 47,53 ----
   #  "mod_evasive",
   #  "mod_redirect",
@@ -16,21 +16,31 @@
 !   "mod_setenv",
   #  "mod_usertrack",
   )
-  
+
 ***************
-*** 140,146 ****
+*** 135,146 ****
+  ##
+  ## FastCGI (mod_fastcgi)
+  ##
+! #include "conf.d/fastcgi.conf"
+
   ##
   ## plain old CGI (mod_cgi)
   ##
 ! #include "conf.d/cgi.conf"
-  
+
   ##
   #######################################################################
---- 140,146 ----
+--- 135,146 ----
+  ##
+  ## FastCGI (mod_fastcgi)
+  ##
+! include "conf.d/fastcgi.conf"
+
   ##
   ## plain old CGI (mod_cgi)
   ##
 ! include "conf.d/cgi.conf"
-  
+
   ##
   #######################################################################

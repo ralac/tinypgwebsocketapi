@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Tiny PostgresSQL Websocket API</title>
+        <style>
+            h1 {
+                margin-left: 20px;
+            }
+            .time { color: green }
+            .message { color: blue; font-weight: bold }
+        </style>
+    </head>
+    <body style="margin: 0 auto; max-width: 800px;">
+        <h1>WebSocket Test</h1>
+        <input id="message" class="input" type="text"/><input id="post" class="input" type="button" value="Send" />
+        <section id="content"><br/></section>
+        <script>
+            document.getElementById('message').setAttribute('disabled', 'disabled')
+            var ws = new WebSocket(location.href.replace(/^http/, 'ws').replace('tpgwsapi_echo.html', 'api/tpgwsapi'));
+            ws.onerror = function() { ws.close(); }
+            ws.onclose = function() { document.getElementById('message').setAttribute('disabled', 'disabled') }
+            ws.onopen = function() {
+                var message_input=document.getElementById('message')
+                message_input.removeAttribute('disabled');
+                ws.onmessage = function(msg) {
+                    if (msg.data.length) {
+                        var currentdate = new Date();
+                        var str_datetime =
+                            currentdate.getFullYear() +
+                            '-' +
+                            String(currentdate.getMonth()+1+100).substr(-2) +
+                            '-' +
+                            String(currentdate.getDate()+100).substr(-2) +
+                            ' ' +
+                            String(currentdate.getHours()+100).substr(-2) +
+                            ':' +
+                            String(currentdate.getMinutes()+100).substr(-2) +
+                            ':' +
+                            String(currentdate.getSeconds()+100).substr(-2);
+                        var content_section = document.getElementById('content');
+                        template = document.createElement('div');
+                        template.innerHTML =
+                            '<span class="time">'+str_datetime+':&nbsp;</span>'+
+                            '<span class="message">'+msg.data+'</span><br/>';
+                        content_section.prepend(template);
+                    }
+                }
+                message_input.onkeydown = function(e) {
+                    if (e.keyCode == 13) document.getElementById('post').click();
+                };
+                document.getElementById('post').onclick = function() {
+                    var message_input=document.getElementById('message');
+                    ws.send(message_input.value);
+                    message_input.value='';
+                };
+            };
+        </script>
+    </body>
+</html>
