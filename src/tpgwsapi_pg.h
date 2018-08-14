@@ -1,3 +1,5 @@
+#include "../config.h"
+
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -18,7 +20,11 @@ SELECT *\n\
     NULL,\
     %s)"
 
-int trace;
+static int tpgwsapi_trace(const char *format, ...);
+static int tpgwsapi_error(const char *format, ...);
+static int tpgwsapi_output(const char *format, ...);
+static size_t tpgwsapi_get_content(char *content, size_t size);
+
 char *pg_url;
 char *pg_function;
 char *tpgwsapi_service;
@@ -30,30 +36,51 @@ int client_id;
 int is_eventsource;
 int is_websocket;
 
+#ifndef HAVE_ASPRINTF
+int vasprintf(char **ret, const char *format, va_list ap)
+{
+    va_list ap2;
+    int len= 100;        /* First guess at the size */
+    if ((*ret= (char *)malloc(len)) == NULL) return -1;
+    while (1)
+    {
+        int nchar;
+        va_copy(ap2, ap);
+        nchar= vsnprintf(*ret, len, format, ap2);
+        if (nchar > -1 && nchar < len) return nchar;
+        if (nchar > len)
+            len= nchar+1;
+        else
+            len*= 2;
+        if ((*ret= (char *)realloc(*ret, len)) == NULL)
+        {
+            free(*ret);
+            return -1;
+        }
+    }
+}
+
+int asprintf(char **ret, const char *format, ...)
+{
+    va_list ap;
+    int nc;
+    va_start (ap, format);
+    nc= vasprintf(ret, format, ap);
+    va_end(ap);
+    return nc;
+}
+#endif /*HAVE_ASPRINTF*/
+
 int pg_connect() {
     PGresult   *res;
-    char *trace_env = getenv("TRACE");
-
-    if (trace_env != NULL && !strcmp(trace_env, "enabled"))
-        trace = 1;
-    else
-        trace = 0;
-
-    if (trace) {
-        fprintf(stderr, "[tpgwsapi-trace] pg_connect pid: %d\n", getpid());
-        fprintf(stderr, "[tpgwsapi-trace] pg_connect [TRACE=%s]\n", trace_env);
-        fprintf(stderr, "[tpgwsapi-trace] pg_connect [TPGWSAPI=%s]\n", getenv("TPGWSAPI"));
-    }
 
     pg_url              = getenv("PG_URL");
     pg_function         = getenv("PG_FUNCTION");
     tpgwsapi_service    = getenv("TPGWSAPI_SERVICE");
 
-    if (trace) {
-        fprintf(stderr, "[tpgwsapi-trace] pg_connect [PG_URL=%s]\n", pg_url);
-        fprintf(stderr, "[tpgwsapi-trace] pg_connect [PG_FUNCTION=%s]\n", pg_function);
-        fprintf(stderr, "[tpgwsapi-trace] pg_connect [TPGWSAPI_SERVICE=%s]\n", tpgwsapi_service);
-    }
+    tpgwsapi_trace("pg_connect [PG_URL=%s]\n", pg_url);
+    tpgwsapi_trace("pg_connect [PG_FUNCTION=%s]\n", pg_function);
+    tpgwsapi_trace("pg_connect [TPGWSAPI_SERVICE=%s]\n", tpgwsapi_service);
 
     if (conn == NULL && pg_url != NULL)
     {
@@ -63,8 +90,7 @@ int pg_connect() {
         /* Check to see that the backend connection was successfully made */
         if (PQstatus(conn) != CONNECTION_OK)
         {
-            fprintf(stderr, "[tpgwsapi] Connection to database failed: %s\n",
-                    PQerrorMessage(conn));
+            tpgwsapi_error("[tpgwsapi] Connection to database failed: %s\n", PQerrorMessage(conn));
             PQfinish(conn);
             return -1;
         }
@@ -73,7 +99,7 @@ int pg_connect() {
         res = PQexec(conn, "SELECT pg_catalog.set_config('search_path', '', false);");
         if (PQresultStatus(res) != PGRES_TUPLES_OK)
         {
-            fprintf(stderr, "[tpgwsapi] SET failed: %s\n", PQerrorMessage(conn));
+            tpgwsapi_error("[tpgwsapi] SET failed: %s\n", PQerrorMessage(conn));
             PQclear(res);
             PQfinish(conn);
             return -2;
@@ -110,13 +136,13 @@ void pg_env_item(char **sql_str, char *item_name) {
     if (item_value == NULL) {
         if (*sql_str == NULL)
             if (asprintf(&sql_str_new, "\n('%s', NULL)", item_name) < 0) {
-                fprintf(stderr, "[tpgwsapi] asprintf failed\n");
+                tpgwsapi_error("[tpgwsapi] asprintf failed\n");
             } else {
                 *sql_str = sql_str_new;
             }
         else {
             if (asprintf(&sql_str_new, "%s, \n('%s', NULL)", *sql_str, item_name) < 0) {
-                fprintf(stderr, "[tpgwsapi] asprintf failed\n");
+                tpgwsapi_error("[tpgwsapi] asprintf failed\n");
             } else {
                 free(*sql_str);
                 *sql_str = sql_str_new;
@@ -127,25 +153,25 @@ void pg_env_item(char **sql_str, char *item_name) {
         if (item_value_len) {
             item_escaped = malloc(item_value_len * 2 + 256);
             if (!item_escaped) {
-                fprintf(stderr, "[tpgwsapi] Out of memory\n");
+                tpgwsapi_error("[tpgwsapi] Out of memory\n");
                 exit(EXIT_FAILURE);
             }
             item_escaped_len = PQescapeStringConn(conn, item_escaped, item_value, item_value_len, &error);
             if (error != 0) {
-                fprintf(stderr, "[tpgwsapi] PQescapeStringConn failed: %s\n", PQerrorMessage(conn));
+                tpgwsapi_error("[tpgwsapi] PQescapeStringConn failed: %s\n", PQerrorMessage(conn));
             }
         } else {
             item_escaped = "";
         }
         if (*sql_str == NULL)
             if (asprintf(&sql_str_new, "\n('%s', '%s')", item_name, item_escaped) < 0) {
-                fprintf(stderr, "[tpgwsapi] asprintf failed\n");
+                tpgwsapi_error("[tpgwsapi] asprintf failed\n");
             } else {
                 *sql_str = sql_str_new;
             }
         else {
             if (asprintf(&sql_str_new, "%s, \n('%s', '%s')", *sql_str, item_name, item_escaped) < 0) {
-                fprintf(stderr, "[tpgwsapi] asprintf failed\n");
+                tpgwsapi_error("[tpgwsapi] asprintf failed\n");
             } else {
                 free(*sql_str);
                 *sql_str = sql_str_new;
@@ -157,7 +183,7 @@ void pg_env_item(char **sql_str, char *item_name) {
     }
 }
 
-void pg_function_handler() {
+void pg_function_handler(int with_trace) {
     PGresult *res;
     char *cgi_environment = NULL;
     unsigned char *request_body = NULL;
@@ -168,9 +194,7 @@ void pg_function_handler() {
     char *content = NULL;
     int i;
 
-    if (trace) {
-        fprintf(stderr, "[tpgwsapi-trace] New pg_function_handler call\n");
-    }
+    tpgwsapi_trace("New pg_function_handler call\n");
 
     /* CGI 1.1 Standard environment variables       */
     pg_env_item(&cgi_environment, "AUTH_TYPE");
@@ -239,13 +263,17 @@ void pg_function_handler() {
         if (content_length) {
             content = malloc(content_length + 1);
             if (!content) {
-                fprintf(stderr, "[tpgwsapi] Out of memory\n");
+                tpgwsapi_error("[tpgwsapi] Out of memory\n");
                 exit(EXIT_FAILURE);
             }
-            fgets(content, content_length + 1, stdin);
-            request_body = PQescapeByteaConn(conn, content, content_length, &request_body_length);
-            if (request_body == NULL) {
-                fprintf(stderr, "[tpgwsapi] PQescapeByteaConn failed: %s\n", PQerrorMessage(conn));
+            if (tpgwsapi_get_content(content, content_length) < content_length) {
+                tpgwsapi_error("[tpgwsapi] PQescapeByteaConn failed: %s\n", PQerrorMessage(conn));
+            } else {
+                *(content + content_length) = '\0';
+                request_body = PQescapeByteaConn(conn, content, content_length, &request_body_length);
+                if (request_body == NULL) {
+                    tpgwsapi_error("[tpgwsapi] PQescapeByteaConn failed: %s\n", PQerrorMessage(conn));
+                }
             }
         }
     }
@@ -259,17 +287,16 @@ void pg_function_handler() {
                 (request_body == NULL ? "" : "'"),
                 (request_body == NULL ? "NULL" : (char *)request_body),
                 (request_body == NULL ? "" : "'::bytea"),
-                (trace ? "true" : "false")
+                (with_trace ? "true" : "false")
             ) < 0) {
-        fprintf(stderr, "[tpgwsapi] asprintf failed\n");
+        tpgwsapi_error("[tpgwsapi] asprintf failed\n");
     } else {
-        if (trace)
-            fprintf(stderr, "[tpgwsapi-trace] sql_cmd=%s\n", sql_cmd);
+        tpgwsapi_trace("sql_cmd=%s\n", sql_cmd);
 
         res = PQexec(conn, sql_cmd);
         if (PQresultStatus(res) != PGRES_TUPLES_OK)
         {
-            fprintf(stderr, "[tpgwsapi] SELECT failed: %s\n", PQerrorMessage(conn));
+            tpgwsapi_error("[tpgwsapi] SELECT failed: %s\n", PQerrorMessage(conn));
             PQclear(res);
         } else {
             if (PQntuples(res) == 1) {
@@ -288,7 +315,7 @@ void pg_function_handler() {
                 if (PQgetisnull(res, 0, col_client_id) != 1)
                     client_id = atoi(PQgetvalue(res, 0, col_client_id));
                 if (PQgetisnull(res, 0, col_response_status) != 1)
-                    fprintf(stdout, "%s\r\n", PQgetvalue(res, 0, col_response_status));
+                    tpgwsapi_output("%s\r\n", PQgetvalue(res, 0, col_response_status));
                 if (PQgetisnull(res, 0, col_response_headers) != 1) {
                     int bytea_array_size = PQgetlength(res, 0, col_response_headers);
                     unsigned char *response_headers;
@@ -314,11 +341,10 @@ void pg_function_handler() {
                                     *ptr = '\0';
                                     header = PQunescapeBytea(header_start+1, &to_length);
                                     if (header == NULL) {
-                                        if (trace)
-                                            fprintf(stderr, "[tpgwsapi-trace] PQunescapeBytea failed: %s\n", PQerrorMessage(conn));
+                                        tpgwsapi_trace("PQunescapeBytea failed: %s\n", PQerrorMessage(conn));
                                     } else {
                                         *(header+to_length) = '\0';
-                                        fprintf(stdout, "%s\r\n", header);
+                                        tpgwsapi_output("%s\r\n", header);
                                         PQfreemem(header);
                                     }
                                     header_start = NULL;
@@ -329,20 +355,19 @@ void pg_function_handler() {
                         }
                     }
                 }
-                fprintf(stdout, "\r\n");
+                tpgwsapi_output("\r\n");
                 if (PQgetisnull(res, 0, col_response_body) != 1) {
                     char *response_content;
                     size_t response_content_len;
                     response_content = PQunescapeBytea(PQgetvalue(res, 0, col_response_body), &response_content_len);
                     if (response_content == NULL) {
-                        if (trace)
-                            fprintf(stderr, "[tpgwsapi-trace] PQunescapeBytea failed: %s\n", PQerrorMessage(conn));
+                        tpgwsapi_trace("PQunescapeBytea failed: %s\n", PQerrorMessage(conn));
                     } else {
                         char *content_buf = malloc(response_content_len + 1);
                         memcpy(content_buf, response_content, response_content_len);
                         PQfreemem(response_content);
                         *(content_buf+response_content_len) = '\0';
-                        fprintf(stdout, "%s", content_buf);
+                        tpgwsapi_output("%s", content_buf);
                         free(content_buf);
                     }
                 }
@@ -351,15 +376,14 @@ void pg_function_handler() {
                 if (PQgetisnull(res, 0, col_websocket) != 1)
                     is_websocket = ( !strcmp(PQgetvalue(res, 0, col_websocket),"t") ? 1 : 0 );
                 if (!is_websocket && !is_eventsource)
-                    fprintf(stdout, "\r\n");
-                fflush(stdout);
-                if (trace && PQgetisnull(res, 0, col_trace) != 1) {
-                    fprintf(stderr, \
+                    tpgwsapi_output("\r\n");
+                if (with_trace && PQgetisnull(res, 0, col_trace) != 1) {
+                    tpgwsapi_trace(\
                         "------------------------------------------------------------ \n" \
-                        "[tpgwsapi-trace] postgres trace: \n%s\n", PQgetvalue(res, 0, col_trace));
+                        "postgres trace: \n%s\n", PQgetvalue(res, 0, col_trace));
                 }
             } else {
-                fprintf(stderr, "[tpgwsapi] PQntuples(res) != 1\n");
+                tpgwsapi_error("[tpgwsapi] PQntuples(res) != 1\n");
             }
             PQclear(res);
         }

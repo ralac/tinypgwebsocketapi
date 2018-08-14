@@ -1,6 +1,6 @@
-dist_app/api/
+dist_app/bin/
 lighttpd1.4/
 **/*.log
 tinypgwebsocketapi.cbp
 tinypgwebsocketapi.layout
-
+NOTES.md

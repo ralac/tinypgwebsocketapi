@@ -1,28 +1,64 @@
 #include <fcgi_stdio.h>
 #include <sys/select.h>
+#include <stdarg.h>
 
 #include "websocket_parser.h"
-#include "tpgwsapi.h"
-
-char *reading_buffer_size_str;
-char *fd_polling_timeout_str;
-size_t reading_buffer_size = 0;
-long fd_polling_timeout = 0;
+#include "tpgwsapi_pg.h"
 
 int ws_active = 0;
+int echo = 1;
+int trace = 0;
 
 char *in_buf = NULL;
 char *out_buf = NULL;
 uint64_t remaining = 0;
 uint64_t out_buf_to_send = 0;
+char *reading_buffer_size_str = NULL;
+char *fd_polling_timeout_str = NULL;
+size_t reading_buffer_size = 0;
+long fd_polling_timeout = 0;
 
+static int tpgwsapi_trace(const char *format, ...) {
+    va_list strs_;
 
-#ifndef TPGWSAPI_FCGI
-void send_message(void *msg, uint64_t len, unsigned char opcode) {
+    if (trace) {
+        va_start( strs_, format );
+        return FCGI_vfprintf(FCGI_stderr, format, strs_);
+    } else {
+        return 0;
+    }
+}
+
+static int tpgwsapi_error(const char *format, ...){
+    va_list strs_;
+
+    va_start( strs_, format );
+    return FCGI_vfprintf(FCGI_stderr, format, strs_);
+}
+
+static int tpgwsapi_output(const char *format, ...) {
+    va_list strs_;
+
+    va_start( strs_, format );
+    return FCGI_vfprintf(FCGI_stdout, format, strs_);
+}
+
+static size_t tpgwsapi_get_content(char *content, size_t size) {
+    return read(
+        fileno(FCGI_stdin),
+        content,
+        size
+    );
+}
+
+void websocket_send_message(void *msg, uint64_t len, unsigned char opcode) {
     out_buf_to_send = websocket_server_wrap(out_buf, msg, len, opcode, 1, 1, 0);
-    if (write(fileno(stdout), out_buf, out_buf_to_send) < 0) {
-        if (trace)
-            fprintf(stderr, "[tpgwsapi-trace] Write() failed: %s\n", strerror(errno));
+    if (write(
+            fileno(FCGI_stdout),
+            out_buf,
+            out_buf_to_send
+    ) < 0) {
+        tpgwsapi_trace("Write() failed: %s\n", strerror(errno));
         ws_active = 0;
     }
 }
@@ -31,38 +67,63 @@ static void websocket_on_unwrapped(void *udata, void *msg, uint64_t len,
                                    char first, char last, char opcode,
                                    unsigned char rsv){
     if (opcode == 1) { /* text */
-        send_message(msg, len, 1);
-        if (trace) {
-            char *trace_msg = malloc(len + 1);
-            memcpy(trace_msg, msg, len);
-            *(trace_msg+len) = '\0';
-            fprintf(stderr, "[tpgwsapi-trace] received protocol message: %s\n", trace_msg);
-            free(trace_msg);
+        if (echo) {
+            websocket_send_message(msg, len, 1);
+            if (trace) {
+                char *trace_msg = malloc(len + 1);
+                memcpy(trace_msg, msg, len);
+                *(trace_msg+len) = '\0';
+                tpgwsapi_trace("received protocol message: %s\n", trace_msg);
+                free(trace_msg);
+            }
         }
     }
 }
 
 static void websocket_on_protocol_ping(void *udata, void *msg, uint64_t len){
-    send_message(msg, len, 10);
-    if (trace)
-        fprintf(stderr, "[tpgwsapi-trace] received protocol PING: %s\n", msg);
+    websocket_send_message(msg, len, 10);
+    tpgwsapi_trace("received protocol PING: %s\n", msg);
 }
 
 static void websocket_on_protocol_pong(void *udata, void *msg, uint64_t len){
-    if (trace)
-        fprintf(stderr, "[tpgwsapi-trace] received protocol PONG: %s\n", msg);
+    tpgwsapi_trace("received protocol PONG: %s\n", msg);
 }
 
 static void websocket_on_protocol_close(void *udata) {
     ws_active = 0;
-    if (trace)
-        fprintf(stderr, "[tpgwsapi-trace] websocket protocol close\n");
+    tpgwsapi_trace("websocket protocol close\n");
 }
 
 static void websocket_on_protocol_error(void *udata) {
     ws_active = 0;
-    if (trace)
-        fprintf(stderr, "[tpgwsapi-trace] websocket protocol error\n");
+    tpgwsapi_trace("websocket protocol error\n");
+}
+
+int tpgwsapi_read_stdin() {
+    tpgwsapi_trace("websocket_handler reading...\n");
+    //consume
+    uint64_t to_consume;
+    uint64_t to_read;
+    size_t num_blocks;
+    to_read = reading_buffer_size - remaining;
+    tpgwsapi_trace("websocket_handler to_read=%d\n", to_read);
+    to_consume = read(
+        fileno(FCGI_stdin),
+        in_buf + remaining,
+        (size_t)to_read
+    );
+    tpgwsapi_trace("websocket_handler to_consume=%d\n", to_consume);
+    if (to_consume < 0) {
+        tpgwsapi_trace("Read() failed: %s\n", strerror(errno));
+        return -1;
+    }
+    if (to_consume > 0) {
+        to_consume = to_consume + remaining;
+        tpgwsapi_trace("websocket_handler before consume remaining=%d\n", remaining);
+        remaining = websocket_consume(in_buf, to_consume, NULL, 1);
+        tpgwsapi_trace("websocket_handler after consume  remaining=%d\n", remaining);
+    }
+    return 0;
 }
 
 void websocket_handler() {
@@ -98,82 +159,67 @@ void websocket_handler() {
     while (ws_active) {
         /* Watch stdin to see when it has input. */
         FD_ZERO(&rfds);
-        FD_SET(fileno(stdin), &rfds);
+        FD_SET(fileno(FCGI_stdin), &rfds);
 
         FD_ZERO(&efds);
-        FD_SET(fileno(stdin), &efds);
+        FD_SET(fileno(FCGI_stdin), &efds);
 
         retval = select(1, &rfds, NULL, &efds, &tv);
         /* Don't rely on the value of tv now! */
 
         if (retval < 0) {
-            if (trace)
-                fprintf(stderr, "[tpgwsapi-trace] Select() failed: %s\n", strerror(errno));
+            tpgwsapi_trace("Select() failed: %s\n", strerror(errno));
             break;
         } else if (retval) {
-            if (FD_ISSET(fileno(stdin), &rfds)) {
-    fprintf(stderr, "OK reading...\n");
-                //consume
-                uint64_t to_consume;
-                uint64_t to_read;
-                to_read = reading_buffer_size - remaining;
-    fprintf(stderr, "OK to_read=%d\n", to_read);
-                to_consume = read(fileno(stdin), in_buf + remaining, to_read);
-    fprintf(stderr, "OK to_consume=%d\n", to_consume);
-                if (to_consume < 0) {
-                    if (trace)
-                        fprintf(stderr, "[tpgwsapi-trace] Read() failed: %s\n", strerror(errno));
+            if (FD_ISSET(fileno(FCGI_stdin), &rfds)) {
+                tpgwsapi_read_stdin();
+            } else if (FD_ISSET(fileno(FCGI_stdin), &efds)) {
+                if (tpgwsapi_trace("File stdin error: %s\n", strerror(errno)) < 0)
                     break;
-                }
-                if (to_consume > 0) {
-                    to_consume = to_consume + remaining;
-    fprintf(stderr, "OK (before) remaining=%d\n", remaining);
-                    remaining = websocket_consume(in_buf, to_consume, NULL, 1);
-    fprintf(stderr, "OK (after) remaining=%d\n", remaining);
-                }
-            } else if (FD_ISSET(fileno(stdin), &efds)) {
-                if (trace)
-                    fprintf(stderr, "[tpgwsapi-trace] File stdin error: %s\n", strerror(errno));
-                break;
             }
         } else {
             char *my_ping_msg = "Trying to keep connection alive.";
-            send_message(my_ping_msg, strlen(my_ping_msg)+1, 9);
+            websocket_send_message(my_ping_msg, strlen(my_ping_msg)+1, 9);
         }
     }
     if (in_buf == NULL) {
-        fprintf(stderr, "[tpgwsapi] Out of memory\n");
+        tpgwsapi_error("[tpgwsapi] Out of memory\n");
     } else {
         free(in_buf);
     }
     if (out_buf == NULL) {
-        fprintf(stderr, "[tpgwsapi] Out of memory\n");
+        tpgwsapi_error("[tpgwsapi] Out of memory\n");
     } else {
         free(out_buf);
     }
 }
 
-#endif // TPGWSAPI_FCGI
-
 int main()
 {
-    setvbuf(stderr, NULL, _IONBF, 0);
-#ifdef TPGWSAPI_FCGI
+    char *trace_env = getenv("TRACE");
+    if (trace_env != NULL && !strcmp(trace_env, "enabled")) trace = 1;
+
+    fprintf(stderr, "pg_connect pid: %d\n", getpid());
+    fprintf(stderr, "pg_connect [TRACE=%s]\n", trace_env);
+    fprintf(stderr, "pg_connect [TPGWSAPI=%s]\n", getenv("TPGWSAPI"));
+    fflush(stderr);
+
     pg_connect();
     while (FCGI_Accept() >= 0)
     {
-        pg_function_handler();
-    }
-    pg_disconnect();
-#else
-    pg_connect();
-    pg_function_handler();
-    if (is_websocket) {
-        setvbuf(stdin, NULL, _IONBF, 0);
-        setvbuf(stdout, NULL, _IONBF, 0);
-        websocket_handler();
+        /**
+        Websocket process must run as CGI because Lighttpd removes
+        handshake header `Connection`.
+        **/
+        setvbuf(FCGI_stdin, NULL, _IONBF, 0);
+        setvbuf(FCGI_stdout, NULL, _IONBF, 0);
+        setvbuf(FCGI_stderr, NULL, _IONBF, 0);
+
+        pg_function_handler(trace);
+        if (is_websocket) {
+            websocket_handler();
+        }
     }
     pg_disconnect();
     return 0;
-#endif // TPGWSAPI_FCGI
 }
