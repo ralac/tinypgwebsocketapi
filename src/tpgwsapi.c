@@ -1,11 +1,8 @@
-#ifdef TPGWSAPI_FCGI
-
 #include <fcgi_stdio.h>
+#include <sys/select.h>
 
-#else
-
-#include <stdio.h>
 #include "websocket_parser.h"
+#include "tpgwsapi.h"
 
 char *reading_buffer_size_str;
 char *fd_polling_timeout_str;
@@ -19,11 +16,6 @@ char *out_buf = NULL;
 uint64_t remaining = 0;
 uint64_t out_buf_to_send = 0;
 
-#endif // TPGWSAPI_FCGI
-
-#include <errno.h>
-#include <sys/select.h>
-#include "tpgwsapi.h"
 
 #ifndef TPGWSAPI_FCGI
 void send_message(void *msg, uint64_t len, unsigned char opcode) {

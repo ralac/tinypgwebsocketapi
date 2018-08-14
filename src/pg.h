@@ -1,12 +1,7 @@
-#ifdef TPGWSAPI_FCGI
-#include <fcgi_stdio.h>
-#else
-#include <stdio.h>
-#endif // TPGWSAPI_FCGI
-
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <errno.h>
 #include "libpq-fe.h"
 
 #define PG_SELECT_MASK "\n\
