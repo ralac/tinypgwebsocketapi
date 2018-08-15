@@ -66,17 +66,15 @@ void websocket_send_message(void *msg, uint64_t len, unsigned char opcode) {
 static void websocket_on_unwrapped(void *udata, void *msg, uint64_t len,
                                    char first, char last, char opcode,
                                    unsigned char rsv){
-    if (opcode == 1) { /* text */
-        if (echo) {
-            websocket_send_message(msg, len, 1);
-            if (trace) {
-                char *trace_msg = malloc(len + 1);
-                memcpy(trace_msg, msg, len);
-                *(trace_msg+len) = '\0';
-                tpgwsapi_trace("received protocol message: %s\n", trace_msg);
-                free(trace_msg);
-            }
-        }
+    if (echo) {
+        websocket_send_message(msg, len, 1);
+    }
+    if (trace && opcode == 1) { /* text */
+        char *trace_msg = malloc(len + 1);
+        memcpy(trace_msg, msg, len);
+        *(trace_msg+len) = '\0';
+        tpgwsapi_trace("received protocol message: %s\n", trace_msg);
+        free(trace_msg);
     }
 }
 
