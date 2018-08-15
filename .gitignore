@@ -1,4 +1,4 @@
-dist_app/bin/
+webapp/tpgwsapi*
 lighttpd1.4/
 **/*.log
 tinypgwebsocketapi.cbp

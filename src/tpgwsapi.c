@@ -197,11 +197,19 @@ void websocket_handler() {
 int main()
 {
     char *trace_env = getenv("TRACE");
+
+    pg_url              = getenv("PG_URL");
+    pg_function         = getenv("PG_FUNCTION");
+    tpgwsapi_service    = getenv("TPGWSAPI_SERVICE");
+
     if (trace_env != NULL && !strcmp(trace_env, "enabled")) trace = 1;
 
     fprintf(stderr, "pg_connect pid: %d\n", getpid());
     fprintf(stderr, "pg_connect [TRACE=%s]\n", trace_env);
     fprintf(stderr, "pg_connect [TPGWSAPI=%s]\n", getenv("TPGWSAPI"));
+    fprintf(stderr, "pg_connect [PG_URL=%s]\n", pg_url);
+    fprintf(stderr, "pg_connect [PG_FUNCTION=%s]\n", pg_function);
+    fprintf(stderr, "pg_connect [TPGWSAPI_SERVICE=%s]\n", tpgwsapi_service);
     fflush(stderr);
 
     pg_connect();
@@ -211,14 +219,16 @@ int main()
         Websocket process must run as CGI because Lighttpd removes
         handshake header `Connection`.
         **/
-        setvbuf(FCGI_stdin, NULL, _IONBF, 0);
-        setvbuf(FCGI_stdout, NULL, _IONBF, 0);
-        setvbuf(FCGI_stderr, NULL, _IONBF, 0);
 
+        pg_setup_headers();
         pg_function_handler(trace);
         if (is_websocket) {
+            setvbuf(FCGI_stdin, NULL, _IONBF, 0);
+            setvbuf(FCGI_stdout, NULL, _IONBF, 0);
+            setvbuf(FCGI_stderr, NULL, _IONBF, 0);
             websocket_handler();
         }
+        pg_release_headers();
     }
     pg_disconnect();
     return 0;

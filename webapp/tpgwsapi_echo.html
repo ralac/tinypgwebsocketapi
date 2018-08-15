@@ -16,7 +16,7 @@
         <section id="content"><br/></section>
         <script>
             document.getElementById('message').setAttribute('disabled', 'disabled')
-            var ws = new WebSocket(location.href.replace(/^http/, 'ws').replace('tpgwsapi_echo.html', 'bin/tpgwsapi'));
+            var ws = new WebSocket(location.href.replace(/^http/, 'ws').replace('tpgwsapi_echo.html', 'tpgwsapi'));
             ws.onerror = function() { ws.close(); }
             ws.onclose = function() { document.getElementById('message').setAttribute('disabled', 'disabled') }
             ws.onopen = function() {

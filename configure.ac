@@ -21,8 +21,6 @@ AC_CHECK_HEADERS([stdlib.h string.h unistd.h errno.h stdint.h stdio.h stdarg.h s
 # Checks for library functions.
 AC_FUNC_MALLOC
 
-AC_PREFIX_DEFAULT([`pwd`]/dist_app)
-
 AC_CONFIG_FILES([
     Makefile
     src/Makefile

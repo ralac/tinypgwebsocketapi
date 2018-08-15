@@ -20,6 +20,8 @@ SELECT *\n\
     NULL,\
     %s)"
 
+#define RESP_MAX_HEADERS_ARRAY_LEN 16384
+
 static int tpgwsapi_trace(const char *format, ...);
 static int tpgwsapi_error(const char *format, ...);
 static int tpgwsapi_output(const char *format, ...);
@@ -31,6 +33,7 @@ char *tpgwsapi_service;
 
 PGconn *conn = NULL;
 char *sql_cmd = NULL;
+char *sql_cgi_env = NULL;
 
 int client_id;
 int is_eventsource;
@@ -73,14 +76,6 @@ int asprintf(char **ret, const char *format, ...)
 
 int pg_connect() {
     PGresult   *res;
-
-    pg_url              = getenv("PG_URL");
-    pg_function         = getenv("PG_FUNCTION");
-    tpgwsapi_service    = getenv("TPGWSAPI_SERVICE");
-
-    tpgwsapi_trace("pg_connect [PG_URL=%s]\n", pg_url);
-    tpgwsapi_trace("pg_connect [PG_FUNCTION=%s]\n", pg_function);
-    tpgwsapi_trace("pg_connect [TPGWSAPI_SERVICE=%s]\n", tpgwsapi_service);
 
     if (conn == NULL && pg_url != NULL)
     {
@@ -125,9 +120,7 @@ void pg_disconnect() {
 void pg_env_item(char **sql_str, char *item_name) {
     char    *item_value;
     char	*item_escaped;
-    char    *item_empty = "";
     char    *sql_str_new = NULL;
-    char    *mask;
     size_t	item_value_len;
     size_t  item_escaped_len;
     int     error;
@@ -183,76 +176,81 @@ void pg_env_item(char **sql_str, char *item_name) {
     }
 }
 
+void pg_setup_headers() {
+    /**
+        CGI 1.1 Standard environment variables
+                                                    **/
+    pg_env_item(&sql_cgi_env, "AUTH_TYPE");
+    pg_env_item(&sql_cgi_env, "CONTENT_LENGTH");
+    pg_env_item(&sql_cgi_env, "CONTENT_TYPE");
+    pg_env_item(&sql_cgi_env, "GATEWAY_INTERFACE");
+    pg_env_item(&sql_cgi_env, "PATH_INFO");
+    pg_env_item(&sql_cgi_env, "PATH_TRANSLATED");
+    pg_env_item(&sql_cgi_env, "QUERY_STRING");
+    pg_env_item(&sql_cgi_env, "REMOTE_ADDR");
+    pg_env_item(&sql_cgi_env, "REMOTE_HOST");
+    pg_env_item(&sql_cgi_env, "REMOTE_IDENT");
+    pg_env_item(&sql_cgi_env, "REMOTE_USER");
+    pg_env_item(&sql_cgi_env, "REQUEST_METHOD");
+    pg_env_item(&sql_cgi_env, "SCRIPT_NAME");
+    pg_env_item(&sql_cgi_env, "SERVER_NAME");
+    pg_env_item(&sql_cgi_env, "SERVER_PORT");
+    pg_env_item(&sql_cgi_env, "SERVER_PROTOCOL");
+    pg_env_item(&sql_cgi_env, "SERVER_SOFTWARE");
+    /**
+    ---------------------------------------------------
+    ** HTTP Headers commonly used                    **
+    ---------------------------------------------------
+                                                    **/
+    pg_env_item(&sql_cgi_env, "HTTP_ACCEPT");
+    pg_env_item(&sql_cgi_env, "HTTP_USER_AGENT");
+    pg_env_item(&sql_cgi_env, "HTTP_REFERER");
+    pg_env_item(&sql_cgi_env, "HTTP_COOKIE");
+    /**
+    ---------------------------------------------------
+    ** HTTP Headers for web sockets                  **
+    ---------------------------------------------------
+                                                    **/
+    pg_env_item(&sql_cgi_env, "HTTP_HOST");
+    pg_env_item(&sql_cgi_env, "HTTP_UPGRADE");
+    pg_env_item(&sql_cgi_env, "HTTP_CONNECTION");
+    pg_env_item(&sql_cgi_env, "HTTP_SEC_WEBSOCKET_KEY");
+    pg_env_item(&sql_cgi_env, "HTTP_ORIGIN");
+    pg_env_item(&sql_cgi_env, "HTTP_SEC_WEBSOCKET_PROTOCOL");
+    pg_env_item(&sql_cgi_env, "HTTP_SEC_WEBSOCKET_VERSION");
+    /**
+    ---------------------------------------------------
+    ** TPGWSAPI environment variables                **
+    ---------------------------------------------------
+                                                    **/
+    pg_env_item(&sql_cgi_env, "TRACE");
+    pg_env_item(&sql_cgi_env, "PG_URL");
+    pg_env_item(&sql_cgi_env, "PG_FUNCTION");
+    pg_env_item(&sql_cgi_env, "TPGWSAPI_SERVICE");
+    /**
+    ---------------------------------------------------
+    ** TPGWSAPI websockets environment variables     **
+    ---------------------------------------------------
+                                                    **/
+    pg_env_item(&sql_cgi_env, "READING_BUFFER_SIZE");
+    pg_env_item(&sql_cgi_env, "FD_POLLING_TIMEOUT");
+}
+
+void pg_release_headers() {
+    if (sql_cgi_env != NULL)
+        free(sql_cgi_env);
+}
+
 void pg_function_handler(int with_trace) {
     PGresult *res;
-    char *cgi_environment = NULL;
     unsigned char *request_body = NULL;
     size_t content_length = 0;
     size_t request_body_length = 0;
     char *method;
     char *content_length_env;
     char *content = NULL;
-    int i;
 
     tpgwsapi_trace("New pg_function_handler call\n");
-
-    /* CGI 1.1 Standard environment variables       */
-    pg_env_item(&cgi_environment, "AUTH_TYPE");
-    pg_env_item(&cgi_environment, "CONTENT_LENGTH");
-    pg_env_item(&cgi_environment, "CONTENT_TYPE");
-    pg_env_item(&cgi_environment, "GATEWAY_INTERFACE");
-    pg_env_item(&cgi_environment, "HTTP_*");
-    pg_env_item(&cgi_environment, "PATH_INFO");
-    pg_env_item(&cgi_environment, "PATH_TRANSLATED");
-    pg_env_item(&cgi_environment, "QUERY_STRING");
-    pg_env_item(&cgi_environment, "REMOTE_ADDR");
-    pg_env_item(&cgi_environment, "REMOTE_HOST");
-    pg_env_item(&cgi_environment, "REMOTE_IDENT");
-    pg_env_item(&cgi_environment, "REMOTE_USER");
-    pg_env_item(&cgi_environment, "REQUEST_METHOD");
-    pg_env_item(&cgi_environment, "SCRIPT_NAME");
-    pg_env_item(&cgi_environment, "SERVER_NAME");
-    pg_env_item(&cgi_environment, "SERVER_PORT");
-    pg_env_item(&cgi_environment, "SERVER_PROTOCOL");
-    pg_env_item(&cgi_environment, "SERVER_SOFTWARE");
-    /*
-    --------------------------------------------------
-    ** HTTP Headers commonly used                   **
-    --------------------------------------------------
-                                                    */
-    pg_env_item(&cgi_environment, "HTTP_ACCEPT");
-    pg_env_item(&cgi_environment, "HTTP_USER_AGENT");
-    pg_env_item(&cgi_environment, "HTTP_REFERER");
-    pg_env_item(&cgi_environment, "HTTP_COOKIE");
-    /*
-    --------------------------------------------------
-    ** HTTP Headers for web sockets                 **
-    --------------------------------------------------
-                                                    */
-    pg_env_item(&cgi_environment, "HTTP_HOST");
-    pg_env_item(&cgi_environment, "HTTP_UPGRADE");
-    pg_env_item(&cgi_environment, "HTTP_CONNECTION");
-    pg_env_item(&cgi_environment, "HTTP_SEC_WEBSOCKET_KEY");
-    pg_env_item(&cgi_environment, "HTTP_ORIGIN");
-    pg_env_item(&cgi_environment, "HTTP_SEC_WEBSOCKET_PROTOCOL");
-    pg_env_item(&cgi_environment, "HTTP_SEC_WEBSOCKET_VERSION");
-    /*
-    --------------------------------------------------
-    ** TPGWSAPI environment variables               **
-    --------------------------------------------------
-                                                    */
-    pg_env_item(&cgi_environment, "TRACE");
-    pg_env_item(&cgi_environment, "PG_URL");
-    pg_env_item(&cgi_environment, "PG_FUNCTION");
-    pg_env_item(&cgi_environment, "TPGWSAPI_SERVICE");
-    pg_env_item(&cgi_environment, "TPGWSAPI");
-    /*
-    --------------------------------------------------
-    ** TPGWSAPI websockets environment variables    **
-    --------------------------------------------------
-                                                    */
-    pg_env_item(&cgi_environment, "READING_BUFFER_SIZE");
-    pg_env_item(&cgi_environment, "FD_POLLING_TIMEOUT");
 
     method = getenv("REQUEST_METHOD");
     if (method != NULL && !strcmp(method, "POST")) {
@@ -283,7 +281,7 @@ void pg_function_handler(int with_trace) {
                 PG_SELECT_MASK,
                 pg_function,
                 getpid(),
-                (cgi_environment == NULL ? "NULL" : cgi_environment),
+                (sql_cgi_env == NULL ? "NULL" : sql_cgi_env),
                 (request_body == NULL ? "" : "'"),
                 (request_body == NULL ? "NULL" : (char *)request_body),
                 (request_body == NULL ? "" : "'::bytea"),
@@ -322,7 +320,7 @@ void pg_function_handler(int with_trace) {
                     response_headers = PQgetvalue(res, 0, col_response_headers);
                     if (
                         bytea_array_size > 4 &&
-                        bytea_array_size < 16384 &&
+                        bytea_array_size < RESP_MAX_HEADERS_ARRAY_LEN &&
                         response_headers[0] == '{' &&
                         response_headers[bytea_array_size - 1] == '}'
                     ) {
@@ -379,8 +377,8 @@ void pg_function_handler(int with_trace) {
                     tpgwsapi_output("\r\n");
                 if (with_trace && PQgetisnull(res, 0, col_trace) != 1) {
                     tpgwsapi_trace(\
-                        "------------------------------------------------------------ \n" \
-                        "postgres trace: \n%s\n", PQgetvalue(res, 0, col_trace));
+                        "------------------------------------------------------------\n" \
+                        "%s trace: \n%s\n", pg_function, PQgetvalue(res, 0, col_trace));
                 }
             } else {
                 tpgwsapi_error("[tpgwsapi] PQntuples(res) != 1\n");
