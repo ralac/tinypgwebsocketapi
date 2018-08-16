@@ -1,6 +1,5 @@
 #include <fcgi_stdio.h>
 #include <sys/select.h>
-#include <stdarg.h>
 
 #include "websocket_parser.h"
 #include "tpgwsapi_pg.h"
@@ -23,7 +22,9 @@ static int tpgwsapi_trace(const char *format, ...) {
 
     if (trace) {
         va_start( strs_, format );
-        return FCGI_vfprintf(stderr, format, strs_);
+        int ret = FCGI_vfprintf(stderr, format, strs_);
+        fflush(stderr);
+        return ret;
     } else {
         return 0;
     }
@@ -33,7 +34,9 @@ static int tpgwsapi_error(const char *format, ...){
     va_list strs_;
 
     va_start( strs_, format );
-    return FCGI_vfprintf(stderr, format, strs_);
+    int ret = FCGI_vfprintf(stderr, format, strs_);
+    fflush(stderr);
+    return ret;
 }
 
 static int tpgwsapi_output(const char *format, ...) {
@@ -217,24 +220,16 @@ int main()
         closes socket connection.
         **/
 
-fprintf(stderr, "tpgwsapi INICIO 0\n"); fflush(stdout);
         pg_setup_headers();
-fprintf(stderr, "tpgwsapi INICIO 1\n"); fflush(stdout);
         pg_function_handler(trace);
-fprintf(stderr, "tpgwsapi INICIO 2\n"); fflush(stdout);
         fflush(stdout);
-fprintf(stderr, "tpgwsapi INICIO 3\n"); fflush(stdout);
         if (is_websocket) {
             setvbuf(stdin, NULL, _IONBF, 0);
             setvbuf(stdout, NULL, _IONBF, 0);
             setvbuf(stderr, NULL, _IONBF, 0);
             websocket_handler();
         }
-fprintf(stderr, "tpgwsapi FIM 0\n"); fflush(stdout);
-        pg_release_headers();
-fprintf(stderr, "tpgwsapi FIM 1\n"); fflush(stdout);
     }
-fprintf(stderr, "tpgwsapi FIM 2\n"); fflush(stdout);
     pg_disconnect();
     return 0;
 }

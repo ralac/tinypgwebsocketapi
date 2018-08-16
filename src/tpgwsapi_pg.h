@@ -4,6 +4,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <errno.h>
+#include <stdarg.h>
 #include "libpq-fe.h"
 
 #define PG_SELECT_MASK "\n\
@@ -127,7 +128,7 @@ void pg_env_item(char **sql_str, char *item_name) {
 
     item_value = getenv(item_name);
     if (item_value == NULL) {
-        if (*sql_str == NULL)
+        if (*sql_str == NULL || strlen(*sql_str) == 0)
             if (asprintf(&sql_str_new, "\n('%s', NULL)", item_name) < 0) {
                 tpgwsapi_error("[tpgwsapi] asprintf failed\n");
             } else {
@@ -156,7 +157,7 @@ void pg_env_item(char **sql_str, char *item_name) {
         } else {
             item_escaped = "";
         }
-        if (*sql_str == NULL)
+        if (*sql_str == NULL || strlen(*sql_str) == 0)
             if (asprintf(&sql_str_new, "\n('%s', '%s')", item_name, item_escaped) < 0) {
                 tpgwsapi_error("[tpgwsapi] asprintf failed\n");
             } else {
@@ -180,6 +181,9 @@ void pg_setup_headers() {
     /**
         CGI 1.1 Standard environment variables
                                                     **/
+    if (sql_cgi_env != NULL)
+        sql_cgi_env[0] = '\0';
+
     pg_env_item(&sql_cgi_env, "AUTH_TYPE");
     pg_env_item(&sql_cgi_env, "CONTENT_LENGTH");
     pg_env_item(&sql_cgi_env, "CONTENT_TYPE");
@@ -234,11 +238,6 @@ void pg_setup_headers() {
                                                     **/
     pg_env_item(&sql_cgi_env, "READING_BUFFER_SIZE");
     pg_env_item(&sql_cgi_env, "FD_POLLING_TIMEOUT");
-}
-
-void pg_release_headers() {
-    if (sql_cgi_env != NULL)
-        free(sql_cgi_env);
 }
 
 void pg_function_handler(int with_trace) {
