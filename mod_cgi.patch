@@ -1,7 +1,7 @@
-*** lighttpd-1.4.49/src/mod_cgi.c	Mon Mar 12 00:52:20 2018
---- mod_cgi.c	Tue Jul 31 00:23:09 2018
+*** lighttpd1.4/src/mod_cgi.c	Sun Sep  9 06:48:45 2018
+--- mod_cgi.c	Sun Sep  9 06:53:19 2018
 ***************
-*** 797,803 ****
+*** 801,807 ****
   
   		cgi_pid_add(p, hctx->pid, hctx);
   
@@ -9,7 +9,7 @@
   			close(to_cgi_fds[1]);
   		} else {
   			/* there is content to send */
---- 797,803 ----
+--- 801,807 ----
   
   		cgi_pid_add(p, hctx->pid, hctx);
   

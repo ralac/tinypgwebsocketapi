@@ -22,3 +22,8 @@ missing
 **/*.exe
 **/*.o
 stamp-h1
+ar-lib
+config.guess
+config.sub
+ltmain.sh
+

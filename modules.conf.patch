@@ -1,34 +1,72 @@
-*** /etc/lighttpd/modules.conf	Tue Jul 31 08:29:20 2018
---- modules.conf	Tue Jul 31 11:31:18 2018
+*** /etc/lighttpd/modules.conf	Sun Sep  9 07:13:00 2018
+--- modules.conf	Sun Sep  9 07:12:39 2018
 ***************
-*** 47,53 ****
+*** 45,53 ****
+  #  "mod_auth",
+  #  "mod_authn_file",
   #  "mod_evasive",
-  #  "mod_redirect",
-  #  "mod_rewrite",
+! #  "mod_redirect",
+! #  "mod_rewrite",
 ! #  "mod_setenv",
   #  "mod_usertrack",
   )
-
---- 47,53 ----
+  
+--- 45,53 ----
+  #  "mod_auth",
+  #  "mod_authn_file",
   #  "mod_evasive",
-  #  "mod_redirect",
-  #  "mod_rewrite",
+!   "mod_redirect",
+!   "mod_rewrite",
 !   "mod_setenv",
   #  "mod_usertrack",
   )
-
+  
+***************
+*** 92,98 ****
+  ##
+  ## mod_magnet
+  ##
+! #include "conf.d/magnet.conf"
+  
+  ##
+  ## mod_cml
+--- 92,98 ----
+  ##
+  ## mod_magnet
+  ##
+! include "conf.d/magnet.conf"
+  
+  ##
+  ## mod_cml
+***************
+*** 107,113 ****
+  ##
+  ## mod_proxy
+  ##
+! #include "conf.d/proxy.conf"
+  
+  ##
+  ## mod_expire
+--- 107,113 ----
+  ##
+  ## mod_proxy
+  ##
+! include "conf.d/proxy.conf"
+  
+  ##
+  ## mod_expire
 ***************
 *** 135,146 ****
   ##
   ## FastCGI (mod_fastcgi)
   ##
 ! #include "conf.d/fastcgi.conf"
-
+  
   ##
   ## plain old CGI (mod_cgi)
   ##
 ! #include "conf.d/cgi.conf"
-
+  
   ##
   #######################################################################
 --- 135,146 ----
@@ -36,11 +74,11 @@
   ## FastCGI (mod_fastcgi)
   ##
 ! include "conf.d/fastcgi.conf"
-
+  
   ##
   ## plain old CGI (mod_cgi)
   ##
 ! include "conf.d/cgi.conf"
-
+  
   ##
   #######################################################################

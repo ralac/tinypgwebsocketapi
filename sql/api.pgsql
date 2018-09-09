@@ -24,10 +24,10 @@ ALTER TABLE public.authorazations
 CREATE TABLE public.clients
 (
   id serial NOT NULL,
-  authorazation_id integer NOT NULL,
+  authorazation_id uuid NOT NULL,
   cgi_host text,
   cgi_pid bigint,
-  last_message datetime,
+  last_message timestamp,
   CONSTRAINT clients_pkey PRIMARY KEY (id)
 );
 
